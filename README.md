@@ -231,27 +231,41 @@ Faites preuve de pédagogie et soyez clair dans vos explications et procedures d
 **Exercice 1 :**  
 Quels sont les composants dont la perte entraîne une perte de données ?  
   
-*..Répondez à cet exercice ici..*
+- PVC `pra-backup` : si les sauvegardes sont perdues, il n’y a plus de source de restauration.
+- PVC `pra-data` (en l’absence de sauvegarde) : la base de données SQLite en production disparaît.
+- Job de backup/cronjob (si bloqué ou supprimé) : la fenêtre de perte de données (RPO) augmente.
+- Volume physique/nœud du cluster : en cas de destruction complète sans réplication de stockage, les données peuvent disparaître.
 
 **Exercice 2 :**  
 Expliquez nous pourquoi nous n'avons pas perdu les données lors de la supression du PVC pra-data  
   
-*..Répondez à cet exercice ici..*
+
+- Lors du scénario PCA (pod détruit), l’application est recréée automatiquement car le `Deployment` est intact.
+- Les données restent sur le PVC `pra-data` car ce volume est géré indépendamment du cycle de vie du pod.
+- La résilience provient du stockage persistant monté dans le pod ; même si le pod est supprimé, le PVC et le contenu SQLite restent présents.
 
 **Exercice 3 :**  
 Quels sont les RTO et RPO de cette solution ?  
   
-*..Répondez à cet exercice ici..*
+- RTO (Recovery Time Objective) : très rapide pour le crash de pod (quelques secondes/minutes, redémarrage automatique du Deployment). Pour une restauration après perte de PVC, dépend de la procédure manuelle: minutes à dizaines de minutes.
+- RPO (Recovery Point Objective) : 1 minute (backup CronJob tourne chaque minute), donc maximum 1 minute de perte de données entre deux sauvegardes.
 
 **Exercice 4 :**  
 Pourquoi cette solution (cet atelier) ne peux pas être utilisé dans un vrai environnement de production ? Que manque-t-il ?   
   
-*..Répondez à cet exercice ici..*
+- SQLite monolothique c'est pas la solution et on préférera une autre BDD
+- Aucun stockage multizone
+- Pas de mécanisme de sauvegarde hors site ni de versioning 
+- Pas de surveillance et d'alerte
   
 **Exercice 5 :**  
 Proposez une archtecture plus robuste.   
   
-*..Répondez à cet exercice ici..*
+- Utiliser une base de données scalable avec réplication
+- Stockage persistant distribué
+- Sauvegardes automatiques sur un service externe type S3
+- cluster multi zone
+- prometheus et grafana pour le monitoring
 
 ---------------------------------------------------
 Séquence 6 : Ateliers  
