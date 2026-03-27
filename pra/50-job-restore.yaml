@@ -10,11 +10,20 @@ spec:
       containers:
         - name: restore
           image: alpine
+          env:
+            - name: BACKUP_FILE
+              value: ""
           command: ["/bin/sh","-c"]
           args:
             - |
-              LATEST=$(ls -t /backup/*.db | head -1)
-              cp $LATEST /data/app.db
+              if [ -z "$BACKUP_FILE" ]; then
+                FILE=$(ls -t /backup/app-*.db | head -1)
+                echo "No BACKUP_FILE specified, using latest: $FILE"
+              else
+                FILE="/backup/$BACKUP_FILE"
+                echo "Restoring from specified file: $FILE"
+              fi
+              cp $FILE /data/app.db
           volumeMounts:
             - name: data
               mountPath: /data
