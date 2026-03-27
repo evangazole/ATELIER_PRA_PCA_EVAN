@@ -283,7 +283,46 @@ Difficulté : Moyenne (~2 heures)
 ### **Atelier 2 : Choisir notre point de restauration**  
 Aujourd’hui nous restaurobs “le dernier backup”. Nous souhaitons **ajouter la capacité de choisir un point de restauration**.
 
-*..Décrir ici votre procédure de restauration (votre runbook)..*  
+''
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sqlite-restore
+  namespace: pra
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: restore
+          image: alpine
+          env:
+            - name: BACKUP_FILE
+              value: ""
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              if [ -z "$BACKUP_FILE" ]; then
+                FILE=$(ls -t /backup/app-*.db | head -1)
+                echo "No BACKUP_FILE specified, using latest: $FILE"
+              else
+                FILE="/backup/$BACKUP_FILE"
+                echo "Restoring from specified file: $FILE"
+              fi
+              cp $FILE /data/app.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: backup
+              mountPath: /backup
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pra-data
+        - name: backup
+          persistentVolumeClaim:
+            claimName: pra-backup 
+''
   
 ---------------------------------------------------
 Evaluation
