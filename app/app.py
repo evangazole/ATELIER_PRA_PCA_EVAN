@@ -1,9 +1,10 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, jsonify, request
 
 DB_PATH = os.getenv("DB_PATH", "/data/app.db")
+BACKUP_DIR = os.getenv("BACKUP_DIR", "/backup")
 
 app = Flask(__name__)
 
@@ -24,6 +25,32 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+def get_event_count():
+    conn = get_conn()
+    cur = conn.execute("SELECT COUNT(*) FROM events")
+    n = cur.fetchone()[0]
+    conn.close()
+    return n
+
+def get_last_backup_info():
+    if not os.path.isdir(BACKUP_DIR):
+        return None, None
+
+    files = []
+    for name in os.listdir(BACKUP_DIR):
+        path = os.path.join(BACKUP_DIR, name)
+        if os.path.isfile(path):
+            files.append((name, path, os.path.getmtime(path)))
+
+    if not files:
+        return None, None
+
+    last_name, last_path, last_mtime = max(files, key=lambda f: f[2])
+    now_ts = datetime.now(timezone.utc).timestamp()
+    age_seconds = int(now_ts - last_mtime)
+
+    return last_name, age_seconds
 
 # ---------- Routes ----------
 
@@ -80,13 +107,20 @@ def consultation():
 @app.get("/count")
 def count():
     init_db()
+    return jsonify(count=get_event_count())
 
-    conn = get_conn()
-    cur = conn.execute("SELECT COUNT(*) FROM events")
-    n = cur.fetchone()[0]
-    conn.close()
+@app.get("/status")
+def status():
+    init_db()
 
-    return jsonify(count=n)
+    count = get_event_count()
+    last_backup_file, backup_age_seconds = get_last_backup_info()
+
+    return jsonify(
+        count=count,
+        last_backup_file=last_backup_file,
+        backup_age_seconds=backup_age_seconds
+    )
 
 # ---------- Main ----------
 if __name__ == "__main__":
